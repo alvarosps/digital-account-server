@@ -3,9 +3,9 @@ import { BankAccount, BankAccountStatus } from '../models/bankAccount';
 export class BankAccountService {
   private bankAccounts: BankAccount[] = [];
 
-  public createBankAccount(accountHolderId: number): BankAccount {
+  public createBankAccount(accountHolderId: string): BankAccount {
     const newBankAccount: BankAccount = {
-      id: Date.now(),
+      id: Date.now().toString(),
       accountHolderId,
       status: BankAccountStatus.ACTIVE,
       balance: 0,
@@ -19,7 +19,7 @@ export class BankAccountService {
     return newBankAccount;
   }
 
-  public getBankAccountById(id: number): BankAccount | undefined {
+  public getBankAccountById(id: string): BankAccount | undefined {
     return this.bankAccounts.find(bankAccount => bankAccount.id === id);
   }
 
@@ -27,7 +27,7 @@ export class BankAccountService {
     return this.bankAccounts;
   }
 
-  public deposit(id: number, amount: number): BankAccount | null {
+  public deposit(id: string, amount: number): BankAccount | null {
     const bankAccountIndex = this.bankAccounts.findIndex(
       bankAccount => bankAccount.id === id
     );
@@ -43,7 +43,7 @@ export class BankAccountService {
     return this.bankAccounts[bankAccountIndex];
   }
 
-  public withdraw(id: number, amount: number): BankAccount | null {
+  public withdraw(id: string, amount: number): BankAccount | null {
     const bankAccountIndex = this.bankAccounts.findIndex(
       bankAccount => bankAccount.id === id
     );
@@ -60,7 +60,7 @@ export class BankAccountService {
     return this.bankAccounts[bankAccountIndex];
   }
 
-  public blockBankAccount(id: number): BankAccount | null {
+  public blockBankAccount(id: string): BankAccount | null {
     const bankAccountIndex = this.bankAccounts.findIndex(
       bankAccount => bankAccount.id === id
     );
@@ -73,7 +73,7 @@ export class BankAccountService {
     return this.bankAccounts[bankAccountIndex];
   }
 
-  public unblockBankAccount(id: number): BankAccount | null {
+  public unblockBankAccount(id: string): BankAccount | null {
     const bankAccountIndex = this.bankAccounts.findIndex(
       bankAccount => bankAccount.id === id
     );
@@ -83,6 +83,43 @@ export class BankAccountService {
     }
 
     this.bankAccounts[bankAccountIndex].status = BankAccountStatus.ACTIVE;
+    return this.bankAccounts[bankAccountIndex];
+  }
+
+  public updateBankAccount(
+    id: string,
+    updatedBankAccountData: Partial<Omit<BankAccount, 'id'>>
+  ): BankAccount | null {
+    const bankAccountIndex = this.bankAccounts.findIndex(
+      bankAccount => bankAccount.id === id
+    );
+
+    if (bankAccountIndex === -1) {
+      return null;
+    }
+
+    this.bankAccounts[bankAccountIndex] = {
+      ...this.bankAccounts[bankAccountIndex],
+      ...updatedBankAccountData,
+      updatedAt: new Date(),
+    };
+
+    return this.bankAccounts[bankAccountIndex];
+  }
+
+  public closeBankAccount(id: string): BankAccount | null {
+    const bankAccountIndex = this.bankAccounts.findIndex(
+      bankAccount => bankAccount.id === id
+    );
+
+    if (
+      bankAccountIndex === -1 ||
+      this.bankAccounts[bankAccountIndex].status !== BankAccountStatus.ACTIVE
+    ) {
+      return null;
+    }
+
+    this.bankAccounts[bankAccountIndex].status = BankAccountStatus.CLOSED;
     return this.bankAccounts[bankAccountIndex];
   }
 }

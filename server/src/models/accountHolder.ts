@@ -1,5 +1,5 @@
 export interface AccountHolder {
-  id: number;
+  id: string;
   fullName: string;
   cpf: string;
 }

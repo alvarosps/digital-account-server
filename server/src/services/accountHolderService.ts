@@ -8,14 +8,14 @@ export class AccountHolderService {
   ): AccountHolder {
     const newAccountHolder: AccountHolder = {
       ...accountHolderData,
-      id: Date.now(),
+      id: Date.now().toString(),
     };
 
     this.accountHolders.push(newAccountHolder);
     return newAccountHolder;
   }
 
-  public deleteAccountHolder(id: number): boolean {
+  public deleteAccountHolder(id: string): boolean {
     const initialLength = this.accountHolders.length;
     this.accountHolders = this.accountHolders.filter(
       accountHolder => accountHolder.id !== id
@@ -27,12 +27,12 @@ export class AccountHolderService {
     return this.accountHolders;
   }
 
-  public getAccountHolderById(id: number): AccountHolder | undefined {
+  public getAccountHolderById(id: string): AccountHolder | undefined {
     return this.accountHolders.find(accountHolder => accountHolder.id === id);
   }
 
   public updateAccountHolder(
-    id: number,
+    id: string,
     updatedAccountHolderData: Partial<Omit<AccountHolder, 'id'>>
   ): AccountHolder | null {
     const accountHolderIndex = this.accountHolders.findIndex(
