@@ -1,10 +1,43 @@
 import { BankAccount, BankAccountStatus } from '../models/bankAccount';
-import { DynamoDB } from 'aws-sdk';
+import {
+  DynamoDBClient,
+  PutItemCommand,
+  GetItemCommand,
+  ScanCommand,
+  UpdateItemCommand,
+  AttributeValue,
+} from '@aws-sdk/client-dynamodb';
 import { v4 as uuidv4 } from 'uuid';
 
-const REGION = process.env.AWS_REGION;
-const dynamoDB = new DynamoDB.DocumentClient({ region: REGION });
+const dynamoDBClient = new DynamoDBClient({ region: process.env.AWS_REGION });
 const BANK_ACCOUNT_TABLE = 'bank-accounts';
+
+function toDynamoDBItem(item: BankAccount): Record<string, AttributeValue> {
+  const dynamoDBItem: Record<string, AttributeValue> = {};
+  for (const [key, value] of Object.entries(item)) {
+    if (value instanceof Date) {
+      dynamoDBItem[key] = { S: value.toISOString() };
+    } else {
+      dynamoDBItem[key] = { S: value.toString() };
+    }
+  }
+
+  return dynamoDBItem;
+}
+
+function toBankAccount(item: Record<string, AttributeValue>): BankAccount {
+  const bankAccount: BankAccount = {
+    id: item.id.S ?? '',
+    accountHolderId: item.accountHolderId.S ?? '',
+    agency: item.agency.S ?? '',
+    accountNumber: item.accountNumber.S ?? '',
+    balance: item.balance?.N ? +item.balance.N : 0,
+    createdAt: item.createdAt?.S ? new Date(item.createdAt.S) : new Date(),
+    updatedAt: item.updatedAt?.S ? new Date(item.updatedAt.S) : new Date(),
+    status: item.status.S as BankAccountStatus,
+  };
+  return bankAccount;
+}
 
 export class BankAccountService {
   private bankAccounts: BankAccount[] = [];
@@ -25,55 +58,48 @@ export class BankAccountService {
 
     const params = {
       TableName: BANK_ACCOUNT_TABLE,
-      Item: newBankAccount,
+      Item: toDynamoDBItem(newBankAccount),
     };
 
-    await dynamoDB.put(params).promise();
+    await dynamoDBClient.send(new PutItemCommand(params));
     return newBankAccount;
   }
 
   public async getBankAccountById(
     id: string
   ): Promise<BankAccount | undefined> {
-    // return this.bankAccounts.find(bankAccount => bankAccount.id === id);
     const params = {
       TableName: BANK_ACCOUNT_TABLE,
       Key: {
-        id,
+        id: { S: id },
       },
     };
 
-    const result = await dynamoDB.get(params).promise();
-    return result.Item as BankAccount | undefined;
+    const result = await dynamoDBClient.send(new GetItemCommand(params));
+    if (result.Item) {
+      return toBankAccount(result.Item);
+    }
+    return undefined;
   }
 
   public async getAllBankAccounts(): Promise<BankAccount[]> {
-    // return this.bankAccounts;
     const params = {
       TableName: BANK_ACCOUNT_TABLE,
     };
 
-    const result = await dynamoDB.scan(params).promise();
-    return result.Items as BankAccount[];
+    const result = await dynamoDBClient.send(new ScanCommand(params));
+
+    if (!result.Items) {
+      return [];
+    }
+
+    return result.Items.map(item => toBankAccount(item));
   }
 
   public async deposit(
     id: string,
     amount: number
   ): Promise<BankAccount | null> {
-    // const bankAccountIndex = this.bankAccounts.findIndex(
-    //   bankAccount => bankAccount.id === id
-    // );
-
-    // if (
-    //   bankAccountIndex === -1 ||
-    //   this.bankAccounts[bankAccountIndex].status !== BankAccountStatus.ACTIVE
-    // ) {
-    //   return null;
-    // }
-
-    // this.bankAccounts[bankAccountIndex].balance += amount;
-    // return this.bankAccounts[bankAccountIndex];
     const bankAccount = await this.getBankAccountById(id);
 
     if (!bankAccount || bankAccount.status !== BankAccountStatus.ACTIVE) {
@@ -85,18 +111,19 @@ export class BankAccountService {
     const params = {
       TableName: BANK_ACCOUNT_TABLE,
       Key: {
-        id,
+        id: { S: id },
       },
       UpdateExpression: 'SET #balance = :balance',
       ExpressionAttributeNames: {
         '#balance': 'balance',
       },
       ExpressionAttributeValues: {
-        ':balance': bankAccount.balance,
+        ':balance': { N: bankAccount.balance.toString() },
       },
     };
 
-    await dynamoDB.update(params).promise();
+    await dynamoDBClient.send(new UpdateItemCommand(params));
+
     return bankAccount;
   }
 
@@ -104,20 +131,6 @@ export class BankAccountService {
     id: string,
     amount: number
   ): Promise<BankAccount | null> {
-    // const bankAccountIndex = this.bankAccounts.findIndex(
-    //   bankAccount => bankAccount.id === id
-    // );
-
-    // if (
-    //   bankAccountIndex === -1 ||
-    //   this.bankAccounts[bankAccountIndex].status !== BankAccountStatus.ACTIVE ||
-    //   this.bankAccounts[bankAccountIndex].balance < amount
-    // ) {
-    //   return null;
-    // }
-
-    // this.bankAccounts[bankAccountIndex].balance -= amount;
-    // return this.bankAccounts[bankAccountIndex];
     const bankAccount = await this.getBankAccountById(id);
 
     if (
@@ -133,30 +146,22 @@ export class BankAccountService {
     const params = {
       TableName: BANK_ACCOUNT_TABLE,
       Key: {
-        id,
+        id: { S: id },
       },
       UpdateExpression: 'SET #balance = :balance',
       ExpressionAttributeNames: {
         '#balance': 'balance',
       },
       ExpressionAttributeValues: {
-        ':balance': bankAccount.balance,
+        ':balance': { N: bankAccount.balance.toString() },
       },
     };
 
-    await dynamoDB.update(params).promise();
+    await dynamoDBClient.send(new UpdateItemCommand(params));
     return bankAccount;
   }
 
   public async blockBankAccount(id: string): Promise<BankAccount | null> {
-    // const bankAccountIndex = this.bankAccounts.findIndex(
-    //   bankAccount => bankAccount.id === id
-    // );
-    // if (bankAccountIndex === -1) {
-    //   return null;
-    // }
-    // this.bankAccounts[bankAccountIndex].status = BankAccountStatus.BLOCKED;
-    // return this.bankAccounts[bankAccountIndex];
     const bankAccount = await this.getBankAccountById(id);
 
     if (!bankAccount) {
@@ -168,7 +173,7 @@ export class BankAccountService {
     const params = {
       TableName: BANK_ACCOUNT_TABLE,
       Key: {
-        id,
+        id: { S: id },
       },
       UpdateExpression: 'SET #status = :status, #updatedAt = :updatedAt',
       ExpressionAttributeNames: {
@@ -176,26 +181,16 @@ export class BankAccountService {
         '#updatedAt': 'updatedAt',
       },
       ExpressionAttributeValues: {
-        ':status': bankAccount.status,
-        ':updatedAt': new Date().toISOString(),
+        ':status': { S: bankAccount.status },
+        ':updatedAt': { S: new Date().toISOString() },
       },
     };
 
-    await dynamoDB.update(params).promise();
+    await dynamoDBClient.send(new UpdateItemCommand(params));
     return bankAccount;
   }
 
   public async unblockBankAccount(id: string): Promise<BankAccount | null> {
-    // const bankAccountIndex = this.bankAccounts.findIndex(
-    //   bankAccount => bankAccount.id === id
-    // );
-
-    // if (bankAccountIndex === -1) {
-    //   return null;
-    // }
-
-    // this.bankAccounts[bankAccountIndex].status = BankAccountStatus.ACTIVE;
-    // return this.bankAccounts[bankAccountIndex];
     const bankAccount = await this.getBankAccountById(id);
 
     if (!bankAccount) {
@@ -207,7 +202,7 @@ export class BankAccountService {
     const params = {
       TableName: BANK_ACCOUNT_TABLE,
       Key: {
-        id,
+        id: { S: id },
       },
       UpdateExpression: 'SET #status = :status, #updatedAt = :updatedAt',
       ExpressionAttributeNames: {
@@ -215,12 +210,12 @@ export class BankAccountService {
         '#updatedAt': 'updatedAt',
       },
       ExpressionAttributeValues: {
-        ':status': bankAccount.status,
-        ':updatedAt': new Date().toISOString(),
+        ':status': { S: bankAccount.status },
+        ':updatedAt': { S: new Date().toISOString() },
       },
     };
 
-    await dynamoDB.update(params).promise();
+    await dynamoDBClient.send(new UpdateItemCommand(params));
     return bankAccount;
   }
 
@@ -228,21 +223,6 @@ export class BankAccountService {
     id: string,
     updatedBankAccountData: Partial<Omit<BankAccount, 'id'>>
   ): Promise<BankAccount | null> {
-    // const bankAccountIndex = this.bankAccounts.findIndex(
-    //   bankAccount => bankAccount.id === id
-    // );
-
-    // if (bankAccountIndex === -1) {
-    //   return null;
-    // }
-
-    // this.bankAccounts[bankAccountIndex] = {
-    //   ...this.bankAccounts[bankAccountIndex],
-    //   ...updatedBankAccountData,
-    //   updatedAt: new Date(),
-    // };
-
-    // return this.bankAccounts[bankAccountIndex];
     const bankAccount = await this.getBankAccountById(id);
 
     if (!bankAccount) {
@@ -258,7 +238,7 @@ export class BankAccountService {
     const params = {
       TableName: BANK_ACCOUNT_TABLE,
       Key: {
-        id,
+        id: { S: id },
       },
       UpdateExpression:
         'SET #status = :status, #balance = :balance, #updatedAt = :updatedAt',
@@ -268,30 +248,17 @@ export class BankAccountService {
         '#updatedAt': 'updatedAt',
       },
       ExpressionAttributeValues: {
-        ':status': updatedBankAccount.status,
-        ':balance': updatedBankAccount.balance,
-        ':updatedAt': updatedBankAccount.updatedAt.toISOString(),
+        ':status': { S: updatedBankAccount.status },
+        ':balance': { N: updatedBankAccount.balance.toString() },
+        ':updatedAt': { S: updatedBankAccount.updatedAt.toISOString() },
       },
     };
 
-    await dynamoDB.update(params).promise();
+    await dynamoDBClient.send(new UpdateItemCommand(params));
     return updatedBankAccount;
   }
 
   public async closeBankAccount(id: string): Promise<BankAccount | null> {
-    // const bankAccountIndex = this.bankAccounts.findIndex(
-    //   bankAccount => bankAccount.id === id
-    // );
-
-    // if (
-    //   bankAccountIndex === -1 ||
-    //   this.bankAccounts[bankAccountIndex].status !== BankAccountStatus.ACTIVE
-    // ) {
-    //   return null;
-    // }
-
-    // this.bankAccounts[bankAccountIndex].status = BankAccountStatus.CLOSED;
-    // return this.bankAccounts[bankAccountIndex];
     const bankAccount = await this.getBankAccountById(id);
 
     if (!bankAccount || bankAccount.status !== BankAccountStatus.ACTIVE) {
@@ -303,7 +270,7 @@ export class BankAccountService {
     const params = {
       TableName: BANK_ACCOUNT_TABLE,
       Key: {
-        id,
+        id: { S: id },
       },
       UpdateExpression: 'SET #status = :status, #updatedAt = :updatedAt',
       ExpressionAttributeNames: {
@@ -311,12 +278,13 @@ export class BankAccountService {
         '#updatedAt': 'updatedAt',
       },
       ExpressionAttributeValues: {
-        ':status': bankAccount.status,
-        ':updatedAt': new Date().toISOString(),
+        ':status': { S: bankAccount.status },
+        ':updatedAt': { S: new Date().toISOString() },
       },
     };
 
-    await dynamoDB.update(params).promise();
+    await dynamoDBClient.send(new UpdateItemCommand(params));
+
     return bankAccount;
   }
 }

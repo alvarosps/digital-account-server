@@ -111,6 +111,7 @@ export class AccountHolderService {
 
     const updateExpressionComponents = [];
     const expressionAttributeNames: Record<string, string> = {};
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const expressionAttributeValues: Record<string, any> = {};
 
     if (updatedAccountHolderData.fullName) {

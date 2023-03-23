@@ -6,8 +6,10 @@ const bankAccountService = new BankAccountService();
 export class BankAccountController {
   async createBankAccount(req: Request, res: Response) {
     try {
-      const { cpf } = req.body;
-      const newBankAccount = await bankAccountService.createBankAccount(cpf);
+      const { accountHolderId } = req.body;
+      const newBankAccount = await bankAccountService.createBankAccount(
+        accountHolderId
+      );
       return res.status(201).json(newBankAccount);
     } catch (error: unknown) {
       if (error instanceof Error) {
