@@ -1,53 +1,147 @@
 import { AccountHolder } from '../models/accountHolder';
+import {
+  DynamoDBClient,
+  PutItemCommand,
+  DeleteItemCommand,
+  ScanCommand,
+  GetItemCommand,
+  UpdateItemCommand,
+  AttributeValue,
+} from '@aws-sdk/client-dynamodb';
+import { v4 as uuidv4 } from 'uuid';
+
+const dynamoDB = new DynamoDBClient({ region: process.env.AWS_REGION });
+const ACCOUNT_HOLDERS_TABLE = 'account-holders';
+
+function toDynamoDBItem(item: AccountHolder): Record<string, AttributeValue> {
+  const dynamoDBItem: Record<string, AttributeValue> = {};
+  for (const [key, value] of Object.entries(item)) {
+    if (value !== undefined) {
+      dynamoDBItem[key] = { S: value };
+    }
+  }
+
+  return dynamoDBItem;
+}
+
+function fromDynamoDBItem(item: Record<string, AttributeValue>): AccountHolder {
+  const accountHolder: Partial<AccountHolder> = {};
+
+  for (const [key, value] of Object.entries(item)) {
+    if (key === 'id' || key === 'fullName' || key === 'cpf') {
+      accountHolder[key] = value.S as string;
+    }
+  }
+
+  return accountHolder as AccountHolder;
+}
 
 export class AccountHolderService {
-  private accountHolders: AccountHolder[] = [];
-
-  public createAccountHolder(
+  public async createAccountHolder(
     accountHolderData: Omit<AccountHolder, 'id'>
-  ): AccountHolder {
+  ): Promise<AccountHolder> {
     const newAccountHolder: AccountHolder = {
       ...accountHolderData,
-      id: Date.now().toString(),
+      id: uuidv4(),
     };
 
-    this.accountHolders.push(newAccountHolder);
+    const params = {
+      TableName: ACCOUNT_HOLDERS_TABLE,
+      Item: toDynamoDBItem(newAccountHolder),
+    };
+
+    await dynamoDB.send(new PutItemCommand(params));
     return newAccountHolder;
   }
 
-  public deleteAccountHolder(id: string): boolean {
-    const initialLength = this.accountHolders.length;
-    this.accountHolders = this.accountHolders.filter(
-      accountHolder => accountHolder.id !== id
+  public async deleteAccountHolder(id: string): Promise<boolean> {
+    const params = {
+      TableName: ACCOUNT_HOLDERS_TABLE,
+      Key: {
+        id: { S: id },
+      },
+    };
+
+    const result = await dynamoDB.send(new DeleteItemCommand(params));
+    return !!result.Attributes;
+  }
+
+  public async getAllAccountHolders(): Promise<AccountHolder[]> {
+    const params = {
+      TableName: ACCOUNT_HOLDERS_TABLE,
+    };
+
+    const result = await dynamoDB.send(new ScanCommand(params));
+    return (result.Items as Record<string, AttributeValue>[]).map(
+      fromDynamoDBItem
     );
-    return initialLength > this.accountHolders.length;
   }
 
-  public getAllAccountHolders(): AccountHolder[] {
-    return this.accountHolders;
+  public async getAccountHolderById(
+    id: string
+  ): Promise<AccountHolder | undefined> {
+    const params = {
+      TableName: ACCOUNT_HOLDERS_TABLE,
+      Key: {
+        id: { S: id },
+      },
+    };
+
+    const result = await dynamoDB.send(new GetItemCommand(params));
+    if (result.Item) {
+      return fromDynamoDBItem(result.Item);
+    }
+    return undefined;
   }
 
-  public getAccountHolderById(id: string): AccountHolder | undefined {
-    return this.accountHolders.find(accountHolder => accountHolder.id === id);
-  }
-
-  public updateAccountHolder(
+  public async updateAccountHolder(
     id: string,
     updatedAccountHolderData: Partial<Omit<AccountHolder, 'id'>>
-  ): AccountHolder | null {
-    const accountHolderIndex = this.accountHolders.findIndex(
-      accountHolder => accountHolder.id === id
-    );
+  ): Promise<AccountHolder | null> {
+    const accountHolder = await this.getAccountHolderById(id);
 
-    if (accountHolderIndex === -1) {
+    if (!accountHolder) {
       return null;
     }
 
-    this.accountHolders[accountHolderIndex] = {
-      ...this.accountHolders[accountHolderIndex],
+    const updatedAccountHolder: AccountHolder = {
+      ...accountHolder,
       ...updatedAccountHolderData,
     };
 
-    return this.accountHolders[accountHolderIndex];
+    const updateExpressionComponents = [];
+    const expressionAttributeNames: Record<string, string> = {};
+    const expressionAttributeValues: Record<string, any> = {};
+
+    if (updatedAccountHolderData.fullName) {
+      updateExpressionComponents.push('#fullName = :fullName');
+      expressionAttributeNames['#fullName'] = 'fullName';
+      expressionAttributeValues[':fullName'] = {
+        S: updatedAccountHolder.fullName,
+      };
+    }
+
+    if (updatedAccountHolderData.cpf) {
+      updateExpressionComponents.push('#cpf = :cpf');
+      expressionAttributeNames['#cpf'] = 'cpf';
+      expressionAttributeValues[':cpf'] = { S: updatedAccountHolder.cpf };
+    }
+
+    if (updateExpressionComponents.length === 0) {
+      return accountHolder;
+    }
+
+    const params = {
+      TableName: ACCOUNT_HOLDERS_TABLE,
+      Key: {
+        id: { S: id },
+      },
+      UpdateExpression: 'SET ' + updateExpressionComponents.join(', '),
+      ExpressionAttributeNames: expressionAttributeNames,
+      ExpressionAttributeValues: expressionAttributeValues,
+    };
+
+    await dynamoDB.send(new UpdateItemCommand(params));
+    return updatedAccountHolder;
   }
 }

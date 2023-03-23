@@ -1,12 +1,13 @@
 import { Request, Response } from 'express';
 import { AccountHolderService } from '../services/accountHolderService';
+import { AccountHolder } from '../models/accountHolder';
 
 const accountHolderService = new AccountHolderService();
 
 export class AccountHolderController {
   async createAccountHolder(req: Request, res: Response) {
     try {
-      const accountHolderData = req.body;
+      const accountHolderData: Omit<AccountHolder, 'id'> = req.body;
       const newAccountHolder = await accountHolderService.createAccountHolder(
         accountHolderData
       );
