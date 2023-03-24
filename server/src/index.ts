@@ -4,6 +4,11 @@ import dotenv from 'dotenv';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { RequestWithDynamoDBClient } from './types';
 import { auth } from 'express-oauth2-jwt-bearer';
+import yaml from 'yamljs';
+import * as path from 'path';
+import swaggerUi from 'swagger-ui-express';
+
+const openApiSpec = yaml.load(path.join(__dirname, '../openapi/openapi.yaml'));
 
 dotenv.config();
 
@@ -23,10 +28,18 @@ const dynamoDBClient = new DynamoDBClient({
   region: process.env.AWS_REGION,
 });
 
+if (
+  !process.env.AUTH0_AUDIENCE ||
+  !process.env.AUTH0_ISSUER_BASE_URL ||
+  !process.env.AUTH0_TOKEN_SIGNING_ALGORITHM
+) {
+  throw new Error('Auth0 credentials not set in environment variables');
+}
+
 const jwtCheck = auth({
-  audience: 'https://spsfakebankaccounts.com/api',
-  issuerBaseURL: 'https://dev-sxmg408nwnse05ju.us.auth0.com/',
-  tokenSigningAlg: 'RS256',
+  audience: process.env.AUTH0_AUDIENCE,
+  issuerBaseURL: process.env.AUTH0_ISSUER_BASE_URL,
+  tokenSigningAlg: process.env.AUTH0_TOKEN_SIGNING_ALGORITHM,
 });
 
 const app = express();
@@ -38,6 +51,7 @@ app.use(((req: RequestWithDynamoDBClient, res, next) => {
   next();
 }) as RequestHandler);
 app.use(jwtCheck);
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(openApiSpec));
 app.use(routes);
 
 app.listen(PORT, () => {

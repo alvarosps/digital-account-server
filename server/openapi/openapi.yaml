@@ -1,0 +1,721 @@
+---
+openapi: 3.0.0
+info:
+  title: Bank API
+  version: 1.0.0
+  description: A simple API to manage bank accounts and account holders.
+servers:
+  - url: http://localhost:3000
+    description: Local development server
+paths:
+  /accountHolders:
+    post:
+      summary: Create an account holder
+      tags:
+        - Account Holders
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - fullName
+                - cpf
+              properties:
+                fullName:
+                  type: string
+                  description: The full name of the account holder
+                cpf:
+                  type: string
+                  description: The CPF (Cadastro de Pessoas Físicas) of the account holder
+      responses:
+        '201':
+          description: Account holder successfully created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                    description: The unique identifier of the account holder
+                  fullName:
+                    type: string
+                    description: The full name of the account holder
+                  cpf:
+                    type: string
+                    description: The CPF (Cadastro de Pessoas Físicas) of the account holder
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    description: The error message
+        '500':
+          description: An unexpected error occurred creating the account holder
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    description: The error message
+    get:
+      summary: Retrieve all account holders
+      tags:
+        - Account Holders
+      responses:
+        '200':
+          description: Successfully retrieved all account holders
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: string
+                      description: The unique identifier of the account holder
+                    fullName:
+                      type: string
+                      description: The full name of the account holder
+                    cpf:
+                      type: string
+                      description: The CPF (Cadastro de Pessoas Físicas) of the account holder
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    description: The error message
+        '500':
+          description: An unexpected error occurred getting all account holders
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    description: The error message
+  '/accountHolders/{id}':
+    get:
+      summary: Get account holder by ID
+      description: Retrieve a specific account holder's information by its ID.
+      tags:
+        - Account Holders
+      parameters:
+        - name: id
+          in: path
+          description: Account holder's ID
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Account holder found and returned successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccountHolder'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+        '404':
+          description: Account holder not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+        '500':
+          description: An unexpected error occurred
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+    put:
+      summary: Update account holder information
+      description: Update an existing account holder's information by its ID.
+      tags:
+        - Account Holders
+      parameters:
+        - name: id
+          in: path
+          description: Account holder's ID
+          required: true
+          schema:
+            type: string
+      requestBody:
+        description: Account holder information to update
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                fullName:
+                  type: string
+                cpf:
+                  type: string
+      responses:
+        '200':
+          description: Account holder updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccountHolder'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+        '404':
+          description: Account holder not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+        '500':
+          description: An unexpected error occurred
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+    delete:
+      summary: Delete an account holder
+      description: Delete an existing account holder by its ID.
+      tags:
+        - Account Holders
+      parameters:
+        - name: id
+          in: path
+          description: Account holder's ID
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Account holder deleted successfully
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+        '404':
+          description: Account holder not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+        '500':
+          description: An unexpected error occurred
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+  /bankAccounts:
+    post:
+      summary: Create a new bank account
+      tags:
+        - Bank Accounts
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                accountHolderId:
+                  type: string
+              required:
+                - accountHolderId
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                    format: uuid
+                  accountHolderId:
+                    type: string
+                    format: uuid
+                  balance:
+                    type: number
+                    format: float
+                  isBlocked:
+                    type: boolean
+                required:
+                  - id
+                  - accountHolderId
+                  - balance
+                  - isBlocked
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  error:
+                    type: string
+                  details:
+                    type: object
+    get:
+      summary: Get all bank accounts
+      tags:
+        - Bank Accounts
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: string
+                      format: uuid
+                    accountHolderId:
+                      type: string
+                      format: uuid
+                    balance:
+                      type: number
+                      format: float
+                    isBlocked:
+                      type: boolean
+                  required:
+                    - id
+                    - accountHolderId
+                    - balance
+                    - isBlocked
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  error:
+                    type: string
+                  details:
+                    type: object
+  '/bankAccounts/{id}':
+    parameters:
+      - in: path
+        name: id
+        description: ID of the bank account to retrieve
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      summary: Get a bank account by ID
+      tags:
+        - Bank Accounts
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                    format: uuid
+                  accountHolderId:
+                    type: string
+                    format: uuid
+                  balance:
+                    type: number
+                    format: float
+                  isBlocked:
+                    type: boolean
+                required:
+                  - id
+                  - accountHolderId
+                  - balance
+                  - isBlocked
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  error:
+                    type: string
+                  details:
+                    type: object
+        '404':
+          description: Bank Account not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  error:
+                    type: string
+                  details:
+                    type: object
+    put:
+      summary: Update a bank account
+      tags:
+        - Bank Accounts
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                accountHolderId:
+                  type: string
+                  format: uuid
+                balance:
+                  type: number
+                  format: float
+                isBlocked:
+                  type: boolean
+              anyOf:
+                - required:
+                    - accountHolderId
+                - required:
+                    - balance
+                - required:
+                    - isBlocked
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                    format: uuid
+                  accountHolderId:
+                    type: string
+                    format: uuid
+                  balance:
+                    type: number
+                    format: float
+                  isBlocked:
+                    type: boolean
+                required:
+                  - id
+                  - accountHolderId
+                  - balance
+                  - isBlocked
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  error:
+                    type: string
+                  details:
+                    type: object
+        '404':
+          description: Bank Account not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  error:
+                    type: string
+                  details:
+                    type: object
+    delete:
+      summary: Close a bank account
+      tags:
+        - Bank Accounts
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                    format: uuid
+                  accountHolderId:
+                    type: string
+                    format: uuid
+                  balance:
+                    type: number
+                    format: float
+                  isBlocked:
+                    type: boolean
+                required:
+                  - id
+                  - accountHolderId
+                  - balance
+                  - isBlocked
+        '404':
+          description: Bank Account not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  error:
+                    type: string
+                  details:
+                    type: object
+  /bankAccounts/withdraw:
+    post:
+      summary: Withdraw funds from a bank account
+      tags:
+        - Bank Accounts
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                accountId:
+                  type: string
+                  format: uuid
+                amount:
+                  type: number
+                  format: float
+              required:
+                - accountId
+                - amount
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                    format: uuid
+                  accountHolderId:
+                    type: string
+                    format: uuid
+                  balance:
+                    type: number
+                    format: float
+                  isBlocked:
+                    type: boolean
+                required:
+                  - id
+                  - accountHolderId
+                  - balance
+                  - isBlocked
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  error:
+                    type: string
+                  details:
+                    type: object
+        '404':
+          description: Bank Account not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  error:
+                    type: string
+                  details:
+                    type: object
+  /bankAccounts/deposit:
+    post:
+      summary: Deposit funds into a bank account
+      tags:
+        - Bank Accounts
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                accountId:
+                  type: string
+                  format: uuid
+                amount:
+                  type: number
+                  format: float
+              required:
+                - accountId
+                - amount
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                    format: uuid
+                  accountHolderId:
+                    type: string
+                    format: uuid
+                  balance:
+                    type: number
+                    format: float
+                  isBlocked:
+                    type: boolean
+                required:
+                  - id
+                  - accountHolderId
+                  - balance
+                  - isBlocked
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  error:
+                    type: string
+                  details:
+                    type: object
+        '404':
+          description: Bank Account not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  error:
+                    type: string
+                  details:
+                    type: object
