@@ -3,6 +3,7 @@ import routes from './routes';
 import dotenv from 'dotenv';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { RequestWithDynamoDBClient } from './types';
+import { auth } from 'express-oauth2-jwt-bearer';
 
 dotenv.config();
 
@@ -22,6 +23,12 @@ const dynamoDBClient = new DynamoDBClient({
   region: process.env.AWS_REGION,
 });
 
+const jwtCheck = auth({
+  audience: 'https://spsfakebankaccounts.com/api',
+  issuerBaseURL: 'https://dev-sxmg408nwnse05ju.us.auth0.com/',
+  tokenSigningAlg: 'RS256',
+});
+
 const app = express();
 const PORT = process.env.PORT || 3000;
 
@@ -30,6 +37,7 @@ app.use(((req: RequestWithDynamoDBClient, res, next) => {
   req.dynamoDBClient = dynamoDBClient;
   next();
 }) as RequestHandler);
+app.use(jwtCheck);
 app.use(routes);
 
 app.listen(PORT, () => {
