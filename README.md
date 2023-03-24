@@ -18,6 +18,15 @@ To set up this project, follow these steps:
 - Install dependencies by running npm install.
 - Set the environment variables defined in .env.example. You can either create a .env file or set them in your environment.
 - Start the server by running npm start.
+- You will need to create a .env file in the root folder of the project, containing:
+```
+AWS_ACCESS_KEY_ID=<your aws access key>
+AWS_SECRET_ACCESS_KEY=<your aws secret access key>
+AWS_REGION=<aws region you are using>
+AUTH0_AUDIENCE=https://spsfakebankaccounts.com/api
+AUTH0_ISSUER_BASE_URL=https://dev-sxmg408nwnse05ju.us.auth0.com/
+AUTH0_TOKEN_SIGNING_ALGORITHM=RS256
+```
 
 Server will run on http://localhost:3000
 
